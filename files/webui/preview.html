@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+{% autoescape None %}
+<head>
+<link rel="icon" href="data:,">
+<style type="text/css">
+#page {width:100%; max-width:1000px; margin:auto;}
+</style>
+<script>
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function format_dict(dict, null_str) {
+    var text = null_str;
+    if (dict) {
+        text = "{"+Object.entries(dict).map(e=>e[0]+":"+e[1]).join(', ')+"}";
+    }
+    return text;
+}
+    
+var outputs = {{outputs}};
+var i = 0;
+function change_available_buttons() {
+    if (i <= 0){
+        document.getElementById('btn_back').disabled = true;
+    }
+    else {
+        document.getElementById('btn_back').disabled = false;
+    }
+    
+    if (i >= outputs.length - 1){
+        document.getElementById('btn_next').disabled = true;
+    }
+    else {
+        document.getElementById('btn_next').disabled = false;
+    }
+}
+function move_to(new_i) {
+    i = new_i;
+    document.getElementById('screen').src = "/static/{{name}}/"+i+".jpeg";
+    o = outputs[i];
+    document.getElementById('timestamp').textContent = 
+        `id=${o.idx}/${outputs.length - 1} span=[${o.ge.toPrecision(5)}, ${o.lt.toPrecision(5)})`;
+    
+    var key_text = format_dict(o.key, "no_op");
+    var button_text = format_dict(o.button, "no_op");
+    document.getElementById('manipulation').innerHTML = 
+        'xy=' + o.xy + '<br/>key=' + key_text + '</br>btn=' + button_text;
+    var control_text = "no_ctrl";
+    if (o.control) {
+        control_text = o.control.length != 0 ? o.control : "no_ctrl";
+    }
+    document.getElementById('control').textContent = control_text;
+    change_available_buttons();
+}
+</script>
+</head>
+    <body>
+        <div id="page">
+            <div>
+                RecGUI
+                <a href="/webui/index">home</a> 
+                <a href="/webui/records">records</a> 
+            </div>
+            <h1>Preview {{name}}</h1>
+            <p>
+                <button id="btn_back" onclick='move_to(i-1);'>&lt;</button> 
+                <button id="btn_next" onclick='move_to(i+1);'>&gt;</button> 
+                <span id="timestamp">id= span=[, )</span>
+            </p>
+            <table>
+                <td width="600px" valign="top">
+                    image:<br/>
+                    <div><img id="screen" src="/static/{{name}}/0.jpeg" width="600px" /></div>
+                </td>
+                <td width="350px" valign="top">
+                    manipulation after image:<br/>
+                    <div id="manipulation" style="word-break:break-all; border:solid 1px;">null</div>
+                    control after image:<br/>
+                    <div id="control" style="word-break:break-all; border:solid 1px;">null</div>
+                </td>
+            </table>
+       </div>
+       <script>move_to(0);</script>
+    </body>
+</html>

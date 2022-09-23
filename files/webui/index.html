@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="icon" href="data:,">
+<style type="text/css">
+#page {width:100%; max-width:1000px; margin:auto;}
+</style>
+<script>
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function start_on_click() {
+    //request_get("{{url_prefix}}/task/start_sequence");
+}
+</script>
+</head>
+<body>
+<div id="page">
+    <div>
+        RecGUI
+    </div>
+<h1>Home</h1>
+<p><a href="/webui/records">Records</a></p>
+<p><a href="/webui/settings">Settings</a></p>
+</div>
+</body>
+</html>

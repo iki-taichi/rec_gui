@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="icon" href="data:,">
+<style type="text/css">
+#page {width:100%; max-width:600px; margin:auto;}
+</style>
+<script>
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function start_on_click() {
+    request_get("{{url_prefix}}/task/start_sequence");
+}
+</script>
+</head>
+<body>
+<div id="page">
+<h1>Welcome</h1>
+<p>In the next {{total_time_limit}} seconds, you will be asked to solve as many tasks as possible with this browser.
+The tasks are simple browser manipulations that take only a few dozen seconds.</p>
+<p>In each task, click on the rectangle that says start to start the task.</p>
+<p>When you are ready, press the start button to move onto the first one.</p>
+<div style="text-align: center;">
+<button type="button" style="font-size: large; padding: 10px 20px 10px 20px;" onclick="start_on_click()">start</button>
+</div>
+</div>
+</body>
+</html>

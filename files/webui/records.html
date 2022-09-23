@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+{% autoescape None %}
+<head>
+<link rel="icon" href="data:,">
+<style type="text/css">
+#page {width:100%; max-width:1000px; margin:auto;}
+table {border-collapse: separate; border-spacing: 2em 0px;}
+</style>
+<script>
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function convert(name) {
+    request_get("/convert?name="+name);
+    window.location.reload();
+}
+function convert_all() {
+    const names = Array.from(document.getElementsByClassName('record'))
+        .map(x => Array.from(x.getElementsByTagName('td')).map(y => y.textContent))
+        .filter(t => t[2] != 'done')
+        .map(t => t[0]);
+    //const num = names.length
+    const run_status = document.getElementById('run_status');
+    names.forEach(n => {
+        run_status.innerHTML = 'handling:'+n
+        request_get("/convert?name="+n);
+    });
+    window.location.reload();
+    run_status.innerHTML = 'done'
+}
+</script>
+</head>
+<body>
+<div id="page">
+    <div>
+        RecGUI
+        <a href="/webui/index">home</a> 
+    </div>
+    <h1>Records</h1>
+    <p>Convert all unconverted records: <button onclick="convert_all();">run</button> <span id="run_status"><span></p>
+    <table style="border:solid 1px;">
+        <tr>
+            <th>name</th>
+            <th>convert</th>
+            <th>state</th>
+            <th>preview</th>
+        </tr>
+        {% for n, c, s, p in reversed(sorted(records)) %}
+        <tr class="record">
+            <td>{{n}}</td>
+            <td>{{c}}</td>
+            <td>{{s}}</td>
+            <td>{{p}}</td>
+        </tr>
+        {% end %}
+</table>
+</div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="icon" href="data:,">
+<style type="text/css">
+#page {width:100%; max-width:1000px; margin:auto;}
+</style>
+<script>
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function reload_on_click() {
+    request_get("/reload");
+    window.location.reload();
+}
+</script>
+</head>
+<body>
+<div id="page">
+    <div>
+        RecGUI
+        <a href="/webui/index">home</a> 
+    </div>
+<h1>Settings</h1>
+<p><button onclick="reload_on_click();">Reload</button></p>
+<table style="border:solid 1px;">
+    <tr>
+        <th>attribute</th>
+        <th>value</th>
+    </tr>
+    {% for k, v in sorted(global_envs.items()) %}
+    <tr>
+        <td>{{k}}</td>
+        <td>{{v}}</td>
+    </tr>
+    {% end %}
+</table>
+</div>
+</body>
+</html>
