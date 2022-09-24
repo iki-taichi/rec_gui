@@ -1,11 +1,13 @@
 # rec_gui
 An Environment for Recording Low-Level Manipulations in Graphical User Interfaces
 
+<img src="docs/overview_rec_gui.jpg" width="700"/>
+
 ## Usage
 
 Here, we describe the usage of RecGUI running in the local host.
 
-### Recording
+### - Recording
 
 #### Build the image
 
@@ -34,12 +36,11 @@ docker start -a rec_gui
 Access port 5902 with your VNC Client. We used the VNC viewer provided by RealVNC in our dev environment.
 
 You will be asked to enter a passward. The default password is "vnc" (hard coded in supervisord.conf).
-
 After entering the passward, you will be navigated to the welcome page.
 Push the start button to start a task sequence and the recoring.
 
 
-### Converting
+### - Converting
 
 We use the web UI to convert the recorded data (images and manipulation log) into image-action sequences for the model training.
 
@@ -49,7 +50,6 @@ The page will present some links for the functions of this web UI.
 We can see the list of records in the Records page and convert each record by pushing the convert button.
 
 Converted data will be storaged in the files/converted/\<TIMESTAMP\> directory.
-
 The directory includes a series of images and a json file that contains the list of the output actions in every time intervals:
 
 ```
@@ -60,7 +60,7 @@ The directory includes a series of images and a json file that contains the list
     ...
 ```
 
-### Define task sequences
+### - Define task sequences
 
 ToDo
 
