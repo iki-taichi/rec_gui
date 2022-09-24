@@ -691,6 +691,7 @@ if __name__ == "__main__":
             port=VNC_SERVER_PORT,
             password_required=True,
             writer=writer,
+            pseudocursor=True,
         )
     factory.protocol = CustomVNCLoggingServerProxyEx
     factory.listen_tcp(VNC_PUBLIC_PORT)

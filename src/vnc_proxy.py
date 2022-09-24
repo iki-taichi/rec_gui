@@ -27,11 +27,12 @@ class NullTransport(object):
 
 class DummyRFBClient(rfb.RFBClient):
     
-    def __init__(self, transport, factory):
+    def __init__(self, transport, peer_proxy, factory):
         
         super().__init__()
         
         self.transport = transport
+        self.peer_proxy = peer_proxy
         self.factory = factory    
         self.writer = factory.writer
         
@@ -64,6 +65,53 @@ class DummyRFBClient(rfb.RFBClient):
         else:
             data = [x, y, width, height, str_image, str_mask]
             self.writer.set_default('cursor', data)
+    
+    def _handleInitial(self):
+        buffer = b''.join(self._packet)
+        msg = buffer[:12]
+        
+        # report version to the root factory
+        is_first_trial = self.peer_proxy.pv_server is None
+        self.peer_proxy.pv_server = msg
+        
+        if b'\n' in msg:
+            version = 3.3
+            if msg[:3] == b'RFB':
+                version_server = float(msg[3:-1].replace(b'0', b''))
+                SUPPORTED_VERSIONS = (3.3, 3.7, 3.8)
+                if version_server == 3.889: # Apple Remote Desktop
+                    version_server = 3.8
+                if version_server in SUPPORTED_VERSIONS:
+                    version = version_server
+                else:
+                    log.msg("Protocol version %.3f not supported"
+                            % version_server)
+                    version = max(filter(
+                        lambda x: x <= version_server, SUPPORTED_VERSIONS))
+            
+            if is_first_trial:
+                parts = str(version).split('.')
+                self.transport.write(
+                    bytes(b"RFB %03d.%03d\n" % (int(parts[0]), int(parts[1]))))
+            
+            # wait server decide pv
+            version = self.peer_proxy.decide_pv()
+            if version is None:
+                return
+            
+            remained_buffer = buffer[12:]
+            self._packet[:] = [remained_buffer]
+            self._packet_len = len(remained_buffer)
+            self._handler = self._handleExpected
+            self._version = version
+            self._version_server = version_server
+            if version < 3.7:
+                self.expect(self._handleAuth, 4)
+            else:
+                self.expect(self._handleNumberSecurityTypes, 1)
+        else:
+            self._packet[:] = [buffer]
+            self._packet_len = len(buffer)
 
 
 class CustomVNCLoggingClientProxy(portforward.ProxyClient):
@@ -76,7 +124,7 @@ class CustomVNCLoggingClientProxy(portforward.ProxyClient):
     def connectionMade(self):
 
         super().connectionMade()
-        self.internal_protocol = DummyRFBClient(NullTransport(), self.peer.factory)
+        self.internal_protocol = DummyRFBClient(NullTransport(), self.peer, self.peer.factory)
         self.internal_protocol.connectionMade()
 
     def connectionLost(self, reason):
@@ -99,11 +147,12 @@ class CustomVNCLoggingClientFactory(portforward.ProxyClientFactory):
 
 class DummyRFBServer(rfb.RFBServer):
     
-    def __init__(self, transport, factory):
+    def __init__(self, transport, proxy, factory):
     
         super().__init__()
 
         self.transport = transport
+        self.proxy = proxy
         self.factory = factory
         self.writer = factory.writer
         self.buttons = 0
@@ -126,8 +175,31 @@ class DummyRFBServer(rfb.RFBServer):
             'args': [x, y, buttonmask]
         }
         self.writer(json.dumps(data))
-
-
+    
+    def _handle_version(self):
+        msg = self.buffer[:12]
+        if not msg.startswith(b'RFB 003.') and msg.endswith(b'\n'):
+            self.transport.loseConnection()
+        
+        # report version to the root factory
+        self.proxy.pv_client = msg
+        # decide version
+        version = self.proxy.decide_pv()
+        if version is None:
+            return
+        
+        self.buffer = self.buffer[12:]
+        
+        if version < 3.7:
+            if self.factory.password_required:
+                self._handler = self._handle_VNCAuthResponse, 16
+            else:
+                self._handler = self._handle_clientInit, 1
+        else:
+            # XXX send security v3.7+
+            self._handler = self._handle_security, 1
+        
+        
 class CustomVNCLoggingServerProxy(portforward.ProxyServer):
     
     clientProtocolFactory = CustomVNCLoggingClientFactory
@@ -136,11 +208,22 @@ class CustomVNCLoggingServerProxy(portforward.ProxyServer):
         
         super().__init__(*args, **kwargs)
         self.internal_protocol = None
+        
+        self.pv_server = None
+        self.pv_client = None
+    
+    def decide_pv(self):
+        
+        if self.pv_server is None or self.pv_client is None:
+            return None
+        
+        to_float = lambda x: float('{}.{}'.format(int(x[4:7].decode()), int(x[8:11].decode())))
+        return min(to_float(self.pv_server), to_float(self.pv_client))
     
     def connectionMade(self):
         
         super().connectionMade()
-        self.internal_protocol = DummyRFBServer(NullTransport(), self.factory)
+        self.internal_protocol = DummyRFBServer(NullTransport(), self, self.factory)
         self.internal_protocol.connectionMade()
     
     def connectionLost(self, reason):

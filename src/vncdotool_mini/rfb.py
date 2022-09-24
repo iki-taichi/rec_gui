@@ -424,6 +424,7 @@ class RFBClient(Protocol):
 
     def _handleRectangle(self, block):
         (x, y, width, height, encoding) = unpack("!HHHHi", block)
+        
         if self.rectangles:
             self.rectangles -= 1
             self.rectanglePos.append( (x, y, width, height) )
@@ -437,6 +438,9 @@ class RFBClient(Protocol):
                 self.expect(self._handleDecodeCORRE, 4 + self.bypp, x, y, width, height)
             elif encoding == RRE_ENCODING:
                 self.expect(self._handleDecodeRRE, 4 + self.bypp, x, y, width, height)
+            elif encoding == ZLIB_ENCODING:
+                # Handler does not decode, just skils the data
+                self.expect(self._handleDecodeZLIB, 4, x, y, width, height)
             elif encoding == ZRLE_ENCODING:
                 self.expect(self._handleDecodeZRLE, 4, x, y, width, height)
             elif encoding == PSEUDO_CURSOR_ENCODING:
@@ -446,6 +450,7 @@ class RFBClient(Protocol):
             elif encoding == PSEUDO_DESKTOP_SIZE_ENCODING:
                 self._handleDecodeDesktopSize(width, height)
             else:
+                print("unknown encoding received (encoding %d)" % encoding)
                 log.msg("unknown encoding received (encoding %d)" % encoding)
                 self._doConnection()
         else:
@@ -620,8 +625,15 @@ class RFBClient(Protocol):
             self.fillRectangle(tx + sx, ty + sy, sw, sh, color)
             pos += 2
         self._doNextHextileSubrect(bg, color, x, y, width, height, tx, ty)
-
-
+    
+    # ---  ZLIB Encoding
+    def _handleDecodeZLIB(self, block, x, y, width, height):
+        (compressed_bytes,) = unpack("!L", block)
+        self.expect(self._handleDecodeZLIBdata, compressed_bytes, x, y, width, height)
+    
+    def _handleDecodeZLIBdata(self, block, x, y, width, height):
+        self._doConnection()
+    
     # ---  ZRLE Encoding
     def _handleDecodeZRLE(self, block, x, y, width, height):
         """
@@ -765,11 +777,13 @@ class RFBClient(Protocol):
     def dataReceived(self, data):
         #~ sys.stdout.write(repr(data) + '\n')
         #~ print len(data), ", ", len(self._packet)
+        #print('dataReceived', self._handler)
         self._packet.append(data)
         self._packet_len += len(data)
         self._handler()
 
     def _handleExpected(self):
+        #print(self._expected_len, self._expected_handler)
         if self._packet_len >= self._expected_len:
             buffer = b''.join(self._packet)
             while len(buffer) >= self._expected_len:

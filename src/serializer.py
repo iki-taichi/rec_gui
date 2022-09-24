@@ -903,7 +903,8 @@ def serialize(input_path, output_path, base_interval):
     def on_control_events(status, interval):
         for ev in interval.control_events:
             if ev.name == 'start':
-                status['cursor'] = ev.cursor
+                if hasattr(ev, 'cursor'):
+                    status['cursor'] = ev.cursor
             elif ev.name == 'stop':
                 pass
     
