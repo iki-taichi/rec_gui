@@ -152,46 +152,92 @@ TYPE_LEN = {
 }
 
 # ZRLE helpers
-def _zrle_next_bit(it, pixels_in_tile):
-    num_pixels = 0
-    while True:
+#def _zrle_next_bit(it, pixels_in_tile):
+#    num_pixels = 0
+#    while True:
+#        b = ord(next(it))
+#
+#        for n in range(8):
+#            value = b >> (7 - n)
+#            yield value & 1
+#
+#            num_pixels += 1
+#            if num_pixels == pixels_in_tile:
+#                return
+# Fixed to consider paddings
+def _zrle_next_bit(it, tw, th):
+    num_pixels_in_row = 0
+    num_rows = 0
+    while (num_rows < th):
         b = ord(next(it))
-
+        
         for n in range(8):
             value = b >> (7 - n)
-            yield value & 1
+            if num_pixels_in_row < tw:
+                yield value & 1
+                num_pixels_in_row += 1
+        
+        if num_pixels_in_row >= tw:
+            num_pixels_in_row = 0
+            num_rows += 1
 
-            num_pixels += 1
-            if num_pixels == pixels_in_tile:
-                return
-
-
-def _zrle_next_dibit(it, pixels_in_tile):
-    num_pixels = 0
-    while True:
+#def _zrle_next_dibit(it, pixels_in_tile):
+#    num_pixels = 0
+#    while True:
+#        b = ord(next(it))
+#
+#        for n in range(0, 8, 2):
+#            value = b >> (6 - n)
+#            yield value & 3
+#
+#            num_pixels += 1
+#            if num_pixels == pixels_in_tile:
+#                return
+# Fixed to consider paddings
+def _zrle_next_dibit(it, tw, th):
+    num_pixels_in_row = 0
+    num_rows = 0
+    while (num_rows < th):
         b = ord(next(it))
 
         for n in range(0, 8, 2):
             value = b >> (6 - n)
-            yield value & 3
+            if num_pixels_in_row < tw:
+                yield value & 3
+                num_pixels_in_row += 1
+        
+        if num_pixels_in_row >= tw:
+            num_pixels_in_row = 0
+            num_rows += 1
 
-            num_pixels += 1
-            if num_pixels == pixels_in_tile:
-                return
-
-
-def _zrle_next_nibble(it, pixels_in_tile):
-    num_pixels = 0
-    while True:
+#def _zrle_next_nibble(it, pixels_in_tile):
+#    num_pixels = 0
+#    while True:
+#        b = ord(next(it))
+#
+#        for n in range(0, 8, 4):
+#            value = b >> (4 - n)
+#            yield value & 15
+#
+#            num_pixels += 1
+#            if num_pixels == pixels_in_tile:
+#                return
+# Fixed to consider paddings
+def _zrle_next_nibble(it, tw, th):
+    num_pixels_in_row = 0
+    num_rows = 0
+    while (num_rows < th):
         b = ord(next(it))
 
         for n in range(0, 8, 4):
             value = b >> (4 - n)
-            yield value & 15
-
-            num_pixels += 1
-            if num_pixels == pixels_in_tile:
-                return
+            if num_pixels_in_row < tw:
+                yield value & 15
+                num_pixels_in_row += 1
+        
+        if num_pixels_in_row >= tw:
+            num_pixels_in_row = 0
+            num_rows += 1
 
 
 class RFBClient(Protocol):
@@ -677,6 +723,7 @@ class RFBClient(Protocol):
             num_pixels = 0
             pixel_data = bytearray()
             palette_size = subencoding & 127
+            print('pal_size', palette_size)
             if subencoding & 0x80:
                 # RLE
 
@@ -730,11 +777,11 @@ class RFBClient(Protocol):
 
                     palette = [bytearray(cpixel(it)) for _ in range(palette_size)]
                     if palette_size == 2:
-                        next_index = _zrle_next_bit(it, pixels_in_tile)
+                        next_index = _zrle_next_bit(it, tw, th)
                     elif palette_size == 3 or palette_size == 4:
-                        next_index = _zrle_next_dibit(it, pixels_in_tile)
+                        next_index = _zrle_next_dibit(it, tw, th)
                     else:
-                        next_index = _zrle_next_nibble(it, pixels_in_tile)
+                        next_index = _zrle_next_nibble(it, tw, th)
 
                     for palette_index in next_index:
                         pixel_data.extend(palette[palette_index])
