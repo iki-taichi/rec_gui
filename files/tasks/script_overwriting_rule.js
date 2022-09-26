@@ -69,3 +69,20 @@ var set_scale = function (s) {
 }
 set_scale(body_scale);
 
+
+//!http://nlpb-gui
+function request_get(url) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", url, false);
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+
+start_episode = function(){
+    request_get("{{url_prefix}}/task/start_episode");
+};
+
+end_episode = function(ev){
+    reason = undefined;
+    request_get("{{url_prefix}}/task/end_episode?reward="+ev.reward+"&reason="+reason);
+};
