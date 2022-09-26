@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="icon" href="data:,">
+    <style type="text/css">
+    //body {margin:0px;}
+    #navi {background-color:white; color:black;}
+    #page {margin:10px;}
+    h3 {margin-block:0px;}
+    p {margin-block:0px;}
+    </style>
+  </head>
+  <body>
+    <div id="navi"><a href="/page/">Tasks</a> &gt; 
+    {{dataset}}</div>
+    <div id="page">
+      <h3>Available splits</h3>
+      {% for name in split_names %}
+      <p>- <a href="/page/{{dataset}}/{{name}}">{{name}}</a></p>
+      {% end %}
+    </div>
+  </body>
+</html>

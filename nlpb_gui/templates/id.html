@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="icon" href="data:,">
+    <style type="text/css">
+    //body {margin:0px;}
+    #navi {background-color:white; color:black;}
+    #page {margin:10px;}
+    h3 {margin-block:0px;}
+    p {margin-block:0px;}
+    </style>
+    <script>
+      var range = function(start, stop, step){
+        const n = stop - start;
+        const k = Math.ceil(n / step);
+        return [...Array(k)].map((_, i) => start +i*step);
+      }
+      //var split_range = function(l, u, n){
+      //  const tot = u - l;
+      //  const k = Math.max(Math.ceil(tot / n), n);
+      //  return range(0, tot, k).map(i => [l+i, Math.min(l+i+k, u)]);
+      //}
+      var split_range = function(l, u, k){
+        const n = u - l;
+        var s = 10;
+        while (s*k < n){
+          s *= 10;
+        }
+        return range(0, n, s).map(i => [l+i, Math.min(l+i+s, u)]);
+      }
+      var expand_range = function(p, l, u, k, m="0px"){
+        split_range(l, u, k).forEach(r=>{
+            
+          var wrapper_elem = document.createElement('div');
+          wrapper_elem.style.marginLeft=m;
+          wrapper_elem._expanded = false;
+          wrapper_elem.appendChild(document.createTextNode('- '))
+          p.appendChild(wrapper_elem);
+          
+          const is_last = (r[1] - r[0] <= k)
+          if (is_last){
+              range(r[0], r[1], 1).forEach(i => {
+                  var single_elem = document.createElement('a');
+                  single_elem.textContent = i;
+                  single_elem.href = "/page/{{dataset}}/{{split}}/"+i
+                  wrapper_elem.appendChild(single_elem);
+                  wrapper_elem.appendChild(document.createTextNode(' '))
+              });
+          }
+          else{
+              var elem = document.createElement('a');
+              elem.textContent = r[0]+'-'+(r[1]-1);
+              elem.href = 'javascript:void(0);'
+              elem.onclick = () => {
+              if (wrapper_elem._expanded){
+                Array.from(wrapper_elem.getElementsByTagName('div')).forEach(x=>{x.remove()});
+                wrapper_elem._expanded = false;
+              }
+              else{
+                expand_range(wrapper_elem, r[0], r[1], k, "20px");
+                wrapper_elem._expanded = true;
+                p.scrollIntoView(true);
+              }
+            }
+            wrapper_elem.appendChild(elem)
+          }
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="navi"><a href="/page/">Tasks</a> &gt; 
+      <a href="/page/{{dataset}}">{{dataset}}</a> &gt; 
+      {{split}}</div>
+    <div id="page">
+      <h3>Available ids</h3>
+      <div id="id_range"></div>
+      <!--<a href="/page/{{dataset}}/{{split}}/0">0</a>
+      <a href="/page/{{dataset}}/{{split}}/1">1</a>
+      <a href="/page/{{dataset}}/{{split}}/2">2</a>
+      <a href="/page/{{dataset}}/{{split}}/3">3</a>
+      <a href="/page/{{dataset}}/{{split}}/4">4</a>-->
+    </div>
+    <script>
+    var id_range = document.getElementById('id_range');
+    expand_range(id_range, 0, {{num_examples}}, 10);
+    </script>
+  </body>
+</html>

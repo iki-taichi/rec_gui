@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="icon" href="data:,">
+    <style type="text/css">
+    //body {margin:8px;}
+    #navi {background-color:white; color:black;}
+    #page {margin:10px;}
+    h3 {margin-block:0px;}
+    </style>
+  </head>
+  <body>
+    <div id="navi"><a href="/page/">Tasks</a> &gt;
+      <a href="/page/{{dataset}}">{{dataset}}</a> &gt;
+      <a href="/page/{{dataset}}/{{split}}">{{split}}</a> &gt;
+      {{_id}}</div>
+    <div id="page">
+      <h3>{{dataset}}.{{split}}.{{_id}}</h3>
+      <p>{{instruction}}</p>
+      {% for name, content in contents %}
+      <p><strong>{{name}}</strong>:<br/>{{content}}</p>
+      {% end %}
+    </div>
+  </body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  {% autoescape None %}
+  <head>
+    <link rel="icon" href="data:,">
+    <style type="text/css">
+    body {margin:0px;}
+    #page {width:100%; max-width:700px; margin:auto;}
+    #answer_form {margin:8px;}
+    #answer_text {width:400px;}
+    #cover {
+        display:flex; align-items: center; justify-content: center; 
+        background-color:black; color:white; 
+        width:100%; height:100vh; margin:auto;
+        cursor:default;
+    }
+    iframe {width:100%; height:60vh; border-style:solid;}
+    </style>
+    <script>
+    // parameters
+    var labels = {{labels}};
+    var init_url = "{{escape(init_url)}}";
+    var reward_mode = "{{reward_mode}}";
+    
+    // reward
+    var calc_reward = function(answer){
+      if (reward_mode == "distance"){
+        var a = Number(answer.trim());
+        if (isNaN(a)){
+          return 0
+        }
+        return labels.map((l) => Math.max(0, 1 - Math.abs(l-a))).reduce((x, y)=>(x+y))/labels.length;
+      }
+      else{
+        return 1.0*labels.includes(answer.trim())
+      }
+    }
+    
+    // overwrite start_episode to notify to the task controller
+    var start_episode = function(){};
+    var _start_episode = function(){
+        document.getElementById('cover').style.display = 'none';
+        document.getElementById('page').style.display = '';
+        start_episode();
+    };
+
+    // overwrite end_spisode to notify to the task controller
+    var end_episode = function(ev){console.log(ev)};
+    var _end_episode = function(answer){
+        
+        // exception will be raised if cross domain
+        var url;
+        try {
+            url = document.getElementById('content').contentDocument.URL;
+        }
+        catch (e){}
+        end_episode({
+            init_url: init_url,
+            labels: labels,
+            answer: answer,
+            reward: calc_reward(answer),
+            url: url
+        });
+        _gen_episode()
+    };
+
+    var _gen_episode = function(){
+        document.getElementById('content').src = init_url;
+        document.getElementById('cover').style.display = '';
+        document.getElementById('page').style.display = 'none';
+    }
+    </script>
+  </head>
+  <body>
+    <div id="cover" onclick="_start_episode()" style="display:none;">
+      <div><h1>START</h1></div>
+    </div>
+    <div id="page" style="display:none;">
+      <h2>Answer the question {{escape(dataset)}}.{{escape(split)}}.{{_id}} .</h2>
+      <div id="answer_form">
+          <p> Push the submit button after inputing your answer in the textbox. When the question is not displayed, find it at first. </p>
+          answer: <input id="answer_text" />
+          <button onclick="_end_episode(document.getElementById('answer_text').value);">submit</button>
+      </div>
+      <iframe id="content"></iframe>
+    </div>
+    <script>_gen_episode()</script>
+  </body>
+</html>
