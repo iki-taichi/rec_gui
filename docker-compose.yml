@@ -1,0 +1,26 @@
+version: "3.2"
+
+services:
+  rec-gui:
+    container_name: rec-gui
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 5900:5900
+      - 5902:5902
+      - 8888:8888
+    volumes:
+      - type: volume
+        source: /dev/shm
+        target: /dev/shm
+      - type: bind
+        source: $PWD/files
+        target: /files
+  nlpb-gui:
+    container_name: nlpb-gui
+    build:
+      context: ./nlpb_gui
+      dockerfile: Dockerfile
+    ports:
+      - 8889:8889
