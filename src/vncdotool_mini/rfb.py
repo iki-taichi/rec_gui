@@ -723,7 +723,6 @@ class RFBClient(Protocol):
             num_pixels = 0
             pixel_data = bytearray()
             palette_size = subencoding & 127
-            print('pal_size', palette_size)
             if subencoding & 0x80:
                 # RLE
 
