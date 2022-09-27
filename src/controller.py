@@ -457,12 +457,17 @@ class WebUIHandler(tornado.web.RequestHandler):
     
     def get_settings(self):
         
-        file_path = os.path.join(WEBUI_DIR_PATH, 'settings.html')
-        t = tornado.template.Template(''.join(open(file_path).readlines()))
-        global_envs = self.application.get_global_envs()
         envs = {}
+        
+        global_envs = self.application.get_global_envs()
         envs.update(global_envs)
         envs['global_envs'] = global_envs
+        
+        scripts = self.application.driver_wrapper.script_overwriting_rule
+        envs['scripts'] = scripts
+        
+        file_path = os.path.join(WEBUI_DIR_PATH, 'settings.html')
+        t = tornado.template.Template(''.join(open(file_path).readlines()))
         html = t.generate(**envs)
         self.write(html)
     

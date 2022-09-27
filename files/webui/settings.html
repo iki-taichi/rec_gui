@@ -4,6 +4,8 @@
 <link rel="icon" href="data:,">
 <style type="text/css">
 #page {width:100%; max-width:1000px; margin:auto;}
+code {display:block; white-space:pre-wrap;}
+table, th, td {border:1px solid black; border-collapse: collapse;}
 </style>
 <script>
 function request_get(url) {
@@ -26,7 +28,8 @@ function reload_on_click() {
     </div>
 <h1>Settings</h1>
 <p><button onclick="reload_on_click();">Reload</button></p>
-<table style="border:solid 1px;">
+<h2>Variables:</h2>
+<table>
     <tr>
         <th>attribute</th>
         <th>value</th>
@@ -35,6 +38,19 @@ function reload_on_click() {
     <tr>
         <td>{{k}}</td>
         <td>{{v}}</td>
+    </tr>
+    {% end %}
+</table>
+<h2>Scripts to be executed:</h2>
+<table>
+    <tr>
+        <th>matcher</th>
+        <th>value</th>
+    </tr>
+    {% for k, v in scripts %}
+    <tr>
+        <td>{{k.pattern}}</td>
+        <td><code>{{v}}</code></td>
     </tr>
     {% end %}
 </table>
