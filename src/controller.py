@@ -283,13 +283,15 @@ class RecordingThared(threading.Thread):
         size, data = PIL.Image.core.grabscreen_x11(xdisplay)
         return PIL.Image.frombytes("RGB", size, data, "raw", "BGRX", size[0] * 4, 1)
 
-    def __init__(self, stop_event, interval, working_dir_path, writer, duration=None, after_auto_stop=None):
+    def __init__(self, stop_event, interval, working_dir_path, writer, 
+                 do_recording=True, duration=None, after_auto_stop=None):
         
         super().__init__()
         self.stop_event = stop_event
         self.interval = interval
         self.working_dir_path = working_dir_path
         self.writer = writer
+        self.do_recording = do_recording
         self.duration = duration
         self.after_auto_stop = after_auto_stop
 
@@ -306,18 +308,25 @@ class RecordingThared(threading.Thread):
             auto_stop_timer = threading.Timer(self.duration, auto_stop)
             auto_stop_timer.start()
         
-        self.writer.path = os.path.join(self.working_dir_path, 'events.txt')
-        self.writer.start()
+        if self.do_recording:
         
-        elapsed = 0
-        while not self.stop_event.wait(max(0, self.interval - elapsed)):
-            t_start = time.time()
-            image = self.xgrab()
-            path = os.path.join(self.working_dir_path, f'{time.time()}.jpg')
-            image.save(path)
-            elapsed = time.time() - t_start
+            self.writer.path = os.path.join(self.working_dir_path, 'events.txt')
+            self.writer.start()
+            
+            elapsed = 0
+            while not self.stop_event.wait(max(0, self.interval - elapsed)):
+                t_start = time.time()
+                image = self.xgrab()
+                path = os.path.join(self.working_dir_path, f'{time.time()}.jpg')
+                image.save(path)
+                elapsed = time.time() - t_start
         
-        self.writer.stop()
+            self.writer.stop()
+        
+        else:
+            
+            while not self.stop_event.wait(self.interval):
+                pass
         
         if auto_stop_timer:
             auto_stop_timer.cancel()
@@ -419,15 +428,19 @@ class Application(tornado.web.Application):
         
         self.grab_stop.clear()
         
-        working_dir = os.path.join(RECORDS_DIR_PATH, prefix)
-        if not os.path.exists(working_dir):
-            os.mkdir(working_dir)
+        if self.config.do_recording:
+            working_dir = os.path.join(RECORDS_DIR_PATH, prefix)
+            if not os.path.exists(working_dir):
+                os.mkdir(working_dir)
+        else:
+            working_dir = None
         
         thread = RecordingThared(
             self.grab_stop,
             interval=interval,
             working_dir_path=working_dir,
             writer=self.writer,
+            do_recording = self.config.do_recording,
             duration=duration,
             after_auto_stop=after_auto_stop,
         )
@@ -459,6 +472,7 @@ class Application(tornado.web.Application):
         return {
             'total_time_limit': self.task_sequence.total_time_limit,
             'interval': self.config.screenshot_interval,
+            'do_recording': self.config.do_recording,
             'url_prefix': URL_PREFIX,
         }
         
