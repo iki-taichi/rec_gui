@@ -15,7 +15,12 @@ function request_get(url) {
     return xmlHttp.responseText;
 }
 function reload_on_click() {
-    request_get("/reload");
+    var config = Object.fromEntries(
+        Array.from(document.getElementsByClassName("config")).map(
+          e => [e.id, e.value] 
+        )
+    );
+    request_get("/reload?config="+encodeURIComponent(JSON.stringify(config)));
     window.location.reload();
 }
 </script>
@@ -27,29 +32,44 @@ function reload_on_click() {
         <a href="/webui/index">home</a> 
     </div>
 <h1>Settings</h1>
-<p><button onclick="reload_on_click();">Reload</button></p>
-<h2>Variables:</h2>
+<h2>Config:</h2>
+<table>
+    <tr>
+        <th>attribute</th>
+        <th>value</th>
+        <th>new value</th>
+    </tr>
+    {% for k, v in config %}
+    <tr>
+        <td>{{k}}</td>
+        <td>{{v}}</td>
+        <td><input class="config" id="{{k}}" value="{{v}}"/></td>
+    </tr>
+    {% end %}
+</table>
+<p><button onclick="reload_on_click();">apply</button></p>
+<h2>Task sequence:</h2>
 <table>
     <tr>
         <th>attribute</th>
         <th>value</th>
     </tr>
-    {% for k, v in sorted(global_envs.items()) %}
+    {% for k, v in task_sequence %}
     <tr>
         <td>{{k}}</td>
         <td>{{v}}</td>
     </tr>
     {% end %}
 </table>
-<h2>Scripts to be executed:</h2>
+<h2>Script injection rule:</h2>
 <table>
     <tr>
-        <th>matcher</th>
+        <th>URL matcher (reg exp)</th>
         <th>value</th>
     </tr>
-    {% for k, v in scripts %}
+    {% for k, v in script_rule %}
     <tr>
-        <td>{{k.pattern}}</td>
+        <td>{{k}}</td>
         <td><code>{{v}}</code></td>
     </tr>
     {% end %}

@@ -24,7 +24,7 @@ core.startEpisodeReal = function() {
 var _endEpisode = core.endEpisode;
 core.endEpisode = function(reward, time_proportional, reason) {
     _endEpisode(reward, undefined, reason);
-    detail = encodeURIComponent(JSON.stringify({reason: reason}));
+    var detail = encodeURIComponent(JSON.stringify({reason: reason}));
     request_get("{{url_prefix}}/task/end_episode?reward="+reward+"&detail="+detail);
 }
 

@@ -5,27 +5,8 @@
 # Taichi Iki
 #
 
-DEFAULT_DISPLAY = ':1.0'
-
-RECORDS_DIR_PATH = '/files/records'
-CONVERTED_DIR_PATH = '/files/converted'
-TASKS_DIR_PATH = '/files/tasks'
-WEBUI_DIR_PATH = '/files/webui'
-
-WELCOME_PAGE_NAME = 'welcome.html'
-THANKS_PAGE_NAME = 'thanks.html'
-SCRIPT_OVERWRITING_RULE_NAME = 'script_overwriting_rule.js'
-TASK_SEQUENCE_NAME = 'task_sequence.json'
-
-CONTROLLER_PORT = 8888
-VNC_SERVER_PORT = 5900
-VNC_PUBLIC_PORT = 5902
-
-URL_PREFIX = f'http://localhost:{CONTROLLER_PORT}'
-
 
 import os
-os.environ['DISPLAY'] = DEFAULT_DISPLAY
 
 import re
 import json
@@ -49,8 +30,70 @@ from twisted.internet import reactor
 
 import serializer
 
+DEFAULT_DISPLAY = ':1.0'
+os.environ['DISPLAY'] = DEFAULT_DISPLAY
 
-class DriverWrapper(object):
+CONTROLLER_PORT = 8888
+VNC_SERVER_PORT = 5900
+VNC_PUBLIC_PORT = 5902
+URL_PREFIX = f'http://localhost:{CONTROLLER_PORT}'
+
+RECORDS_DIR_PATH = '/files/records'
+CONVERTED_DIR_PATH = '/files/converted'
+TASKS_DIR_PATH = '/files/tasks'
+WEBUI_DIR_PATH = '/files/webui'
+
+WELCOME_PAGE_NAME = 'welcome.html'
+THANKS_PAGE_NAME = 'thanks.html'
+
+
+class ControllerConfig(object):
+    
+    @staticmethod
+    def _bool(x):
+        # ad hoc conversion
+        if isinstance(x, bool):
+            return x
+        else:
+            try:
+                return float(x) != 0
+            except:
+                if isinstance(x, str):
+                    return x.strip().lower() in ('true', 't')
+                else:
+                    return False
+    
+    def __init__(self,
+        do_recording = True,
+        screenshot_interval = 0.1,
+        script_rule_name = 'script_rule.js',
+        task_sequence_name = 'task_sequence.json'
+    ):
+        self.do_recording = self._bool(do_recording)
+        self.screenshot_interval = float(screenshot_interval)
+        self.script_rule_name = script_rule_name
+        self.task_sequence_name = task_sequence_name
+
+    def get_description(self):
+        return [
+            ('do_recording', self.do_recording),
+            ('screenshot_interval', self.screenshot_interval),
+            ('script_rule_name', self.script_rule_name),
+            ('task_sequence_name', self.task_sequence_name),
+        ]
+        
+    @property
+    def script_rule_path(self):
+        return os.path.join(TASKS_DIR_PATH, self.script_rule_name)
+    
+    @property
+    def task_sequence_path(self):
+        return os.path.join(TASKS_DIR_PATH, self.task_sequence_name)
+
+
+class ScriptInjectionRule(object):
+    """Holds a set of script injection rule that will be executed 
+    after an HTML page is loaded if the url matches a rule"""
     
     @staticmethod
     def read_scripts(file_path):
@@ -75,60 +118,33 @@ class DriverWrapper(object):
         
         return scripts
 
-    def __init__(self, script_overwriting_rule_path):
+    def __init__(self, file_path):
         
-        self.driver = None
-        self.script_overwriting_rule_path = script_overwriting_rule_path
-        self.reload_rules()
-            
-    def reload_rules(self):
+        self.file_path = file_path
+        self.reload()
         
-        if self.script_overwriting_rule_path is not None:
-            self.script_overwriting_rule = \
-                self.read_scripts(self.script_overwriting_rule_path)
+    def reload(self):
+        
+        if self.file_path is not None:
+            self.script_injection_rule = self.read_scripts(self.file_path)
         else:
-            self.script_overwriting_rule = []
+            self.script_injection_rule = []
     
-    def is_browser_alive(self):
-
-        try:
-            self.driver_wrapper.driver.window_handles
-        except:
-            return False
+    def get_description(self):
         
-        return True
+        return [(m.pattern, s) for m, s in self.script_injection_rule]
     
-    def init_driver(self):
+    def apply(self, driver, url, task_env):
         
-        option_str = '--no-sandbox --disable-gpu --disable-setuid-sandbox --kiosk'
-        options = selenium.webdriver.ChromeOptions()
-        for o in option_str.split(' '):
-            options.add_argument(o)
-        options.add_experimental_option('excludeSwitches', ['enable-automation'])
-
-        self.driver = selenium.webdriver.Chrome('/chromedriver', options=options)
-
-    def go(self, url, apply_rule=True, task_env=None):
+        for matcher, script in self.script_injection_rule:
+            if matcher.search(url):
+                t = tornado.template.Template(script)
+                driver.execute_script(t.generate(**task_env).decode('utf8'))
+                print('applied:', matcher, url)
         
-        if not self.is_browser_alive():
-            self.init_driver()
-        
-        self.driver.get(url)
-        
-        if apply_rule:
-            task_env = task_env or {}
-            for matcher, script in self.script_overwriting_rule:
-                if matcher.search(url):
-                    t = tornado.template.Template(script)
-                    self.driver.execute_script(t.generate(**task_env).decode('utf8'))
-                    print('applied:', matcher, url)
-    
-    def set_scale(self, s):
-        
-        self.driver.find_element('tag name', 'html').send_keys(Keys.CONTROL, Keys.ADD, Keys.NULL)
-
 
 class TaskSequence(object):
+    """Represents task sequence used in a recording."""
     
     def __init__(self, file_path):
         
@@ -139,14 +155,21 @@ class TaskSequence(object):
         
         j = json.load(open(self.file_path))
         self.total_time_limit = j['total_time_limit']
-        self.interval = j['interval']
         self.seed = j['seed']
         self.use_random_state = (self.seed is not None)
         self.tasks = j['tasks']
         self.random_state = None
         self.gen = None
         self.current_task = None
+    
+    def get_description(self):
         
+        return [
+            ('total_time_limit', self.total_time_limit),
+            ('seed', self.seed),
+            ('tasks', self.tasks),
+        ]
+    
     def __iter__(self):
         
         if self.use_random_state:
@@ -168,9 +191,92 @@ class TaskSequence(object):
         self.current_task = next(self.gen)
         return self.current_task
 
+    
+class DriverWrapper(object):
+    """A wrapper class for selenium Chrome driver"""
+    
+    def __init__(self):
+        
+        self.driver = None
+        
+    def is_browser_alive(self):
+
+        try:
+            self.driver_wrapper.driver.window_handles
+        except:
+            return False
+        
+        return True
+    
+    def init_driver(self):
+        
+        option_str = '--no-sandbox --disable-gpu --disable-setuid-sandbox --kiosk'
+        options = selenium.webdriver.ChromeOptions()
+        for o in option_str.split(' '):
+            options.add_argument(o)
+        options.add_experimental_option('excludeSwitches', ['enable-automation'])
+
+        self.driver = selenium.webdriver.Chrome('/chromedriver', options=options)
+
+    def go(self, url, script_rule=None, task_env={}):
+        
+        if not self.is_browser_alive():
+            self.init_driver()
+        
+        self.driver.get(url)
+        
+        if script_rule:
+            script_rule.apply(self.driver, url, task_env)
+
+
+class EventWriter(object):
+    """VNC proxy and http server write events through this class."""
+    
+    def __init__(self):
+    
+        self.running = False
+        self.path = None
+        self.default_data = {}
+    
+    def write(self, s):
+        
+        with open(self.path, 'a') as f:
+            print(s, file=f)
+    
+    def set_default(self, name, data):
+        
+        self.default_data[name] = data
+    
+    def start(self):
+        
+        data = {
+            'time': time.time(),
+            'event': 'start',
+            'args': [self.default_data],
+        }
+        self.write(json.dumps(data))
+        self.running = True
+    
+    def stop(self):
+        
+        self.running = False
+        data = {
+            'time': time.time(),
+            'event': 'stop',
+            'args': [{}],
+        }
+        self.write(json.dumps(data))
+    
+    def __call__(self, s):
+       
+        if self.running and self.path:
+            self.write(s)
+    
 
 class RecordingThared(threading.Thread):
-
+    """Records screenshots with grabscreen_x11. 
+    We use a sub thread to take screenshots."""
+    
     @staticmethod
     def xgrab(xdisplay=DEFAULT_DISPLAY):
     
@@ -217,6 +323,146 @@ class RecordingThared(threading.Thread):
             auto_stop_timer.cancel()
 
 
+class TornadoThread(threading.Thread):
+    """Tornado runs in a sub thread to use twisted and tornado in a process."""
+    
+    def __init__(self, writer, config):
+
+        super().__init__()
+        self.writer = writer
+        self.config = config
+        self.stop_event = None
+
+    def run(self):
+
+        asyncio.run(self.main())
+
+    async def main(self):
+        
+        app = Application(self.writer, self.config)
+        app.listen(CONTROLLER_PORT)
+        self.stop_event = asyncio.Event()
+        await self.stop_event.wait()
+        
+
+class CustomVNCLoggingServerProxyEx(CustomVNCLoggingServerProxy):
+    """Customized VNC Proxy (client -> server side)
+    This class adds actions that shows pages after making a connection"""
+    
+    def connectionMade(self):
+        
+        super().connectionMade()
+        requests.get(URL_PREFIX+'/task/welcome')
+    
+    def connectionLost(self, reason):
+        
+        super().connectionLost(reason)
+        requests.get(URL_PREFIX+'/grab/stop')
+
+
+# In the following, we define the web server and the handlers.
+class Application(tornado.web.Application):
+    
+    @staticmethod
+    def get_default_prefix():
+        
+        return datetime.datetime.now().strftime('rec-%Y-%m-%dT%H%M%S')
+    
+    def __init__(self, writer, config):
+        
+        self.writer = writer
+        self.driver_wrapper = DriverWrapper()
+        
+        self.config = None
+        self.set_config(config)
+        
+        self.grab_stop = threading.Event()
+        self.grab_stop.set()
+        
+        handlers = [
+            # global functions
+            (r"/reload", ReloadHandler),
+            (r"/convert", ConvertHandler),
+            # webui
+            (r"/webui/(.*)", WebUIHandler),
+            (r"/static/(.*)", tornado.web.StaticFileHandler, {
+                'path': CONVERTED_DIR_PATH, 
+            }),
+            # task
+            (r"/task/(.*)", TaskHandler),
+            # grab
+            (r"/grab/(.*)", GrabHandler),
+        ]
+        settings = dict(
+            debug=True,
+        )
+        super().__init__(handlers, **settings)
+    
+    def set_config(self, config):
+        
+        is_first = self.config is None
+        
+        if is_first or self.config.task_sequence_path != config.task_sequence_path:
+            self.task_sequence = TaskSequence(config.task_sequence_path)
+        
+        if is_first or self.config.script_rule_path != config.script_rule_path:
+            self.script_rule = ScriptInjectionRule(config.script_rule_path)
+        
+        self.config = config
+    
+    def start_recording_thread(self, interval, duration, prefix, after_auto_stop=None):
+        
+        print('start_recording_thread', interval, prefix, duration, after_auto_stop)
+        
+        if not self.grab_stop.is_set():
+            return False
+        
+        self.grab_stop.clear()
+        
+        working_dir = os.path.join(RECORDS_DIR_PATH, prefix)
+        if not os.path.exists(working_dir):
+            os.mkdir(working_dir)
+        
+        thread = RecordingThared(
+            self.grab_stop,
+            interval=interval,
+            working_dir_path=working_dir,
+            writer=self.writer,
+            duration=duration,
+            after_auto_stop=after_auto_stop,
+        )
+        thread.start()
+        return True
+    
+    def stop_recording_thread(self):
+        
+        print('stop_recording_thread')
+        
+        self.grab_stop.set()
+    
+    def move_to_welcome_page(self):
+        
+        file_path = os.path.join(TASKS_DIR_PATH, WELCOME_PAGE_NAME)
+        t = tornado.template.Template(''.join(open(file_path).readlines()))
+        html = t.generate(**self.get_global_envs())
+        self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
+    
+    def move_to_thanks_page(self):
+        
+        file_path = os.path.join(TASKS_DIR_PATH, THANKS_PAGE_NAME)
+        t = tornado.template.Template(''.join(open(file_path).readlines()))
+        html = t.generate(**self.get_global_envs())
+        self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
+    
+    def get_global_envs(self):
+        
+        return {
+            'total_time_limit': self.task_sequence.total_time_limit,
+            'interval': self.config.screenshot_interval,
+            'url_prefix': URL_PREFIX,
+        }
+        
+
 class TaskHandler(tornado.web.RequestHandler):
     
     def set_default_headers(self):
@@ -248,7 +494,7 @@ class TaskHandler(tornado.web.RequestHandler):
         print('task_go', url)
         
         driver_wrapper = self.application.driver_wrapper
-        driver_wrapper.go(url, apply_rule=True)
+        driver_wrapper.go(url, script_rule=self.application.script_rule)
         
         self.write(url)
         
@@ -280,8 +526,12 @@ class TaskHandler(tornado.web.RequestHandler):
         task_env = self.application.get_global_envs()
         task_env['task_seed'] = task['task_seed']
         
-        # ToDo: this will block if the origin of url is this controller
-        self.application.driver_wrapper.go(task['url'], apply_rule=True, task_env=task_env)
+        # ToDo: this may block if the origin of url is this controller
+        self.application.driver_wrapper.go(
+            task['url'], 
+            script_rule=self.application.script_rule, 
+            task_env=task_env
+        )
         
         # write event
         data = {
@@ -294,7 +544,7 @@ class TaskHandler(tornado.web.RequestHandler):
     def get_start_sequence(self):
         
         # start grab
-        interval = self.application.task_sequence.interval
+        interval = self.application.config.screenshot_interval
         duration = self.application.task_sequence.total_time_limit
         prefix = self.application.get_default_prefix()
         ret = self.application.start_recording_thread(
@@ -408,13 +658,16 @@ class GrabHandler(tornado.web.RequestHandler):
 class ReloadHandler(tornado.web.RequestHandler):
 
     def get(self):
-
-        self.application.driver_wrapper.reload_rules()
-        self.application.task_sequence.reload()
         
-        self.write('done')
+        config = self.get_argument('config', None)
+        if config:
+            config_dict = json.loads(tornado.escape.url_unescape(config))
+            self.application.set_config(ControllerConfig(**config_dict))
+            self.write('done')
+        else:
+            self.write('config is missing')
 
-        
+
 class ConvertHandler(tornado.web.RequestHandler):
 
     def get(self):
@@ -460,18 +713,15 @@ class WebUIHandler(tornado.web.RequestHandler):
     
     def get_settings(self):
         
-        envs = {}
-        
-        global_envs = self.application.get_global_envs()
-        envs.update(global_envs)
-        envs['global_envs'] = global_envs
-        
-        scripts = self.application.driver_wrapper.script_overwriting_rule
-        envs['scripts'] = scripts
+        kv = {
+            'config': self.application.config.get_description(),
+            'task_sequence': self.application.task_sequence.get_description(),
+            'script_rule': self.application.script_rule.get_description(),
+        }
         
         file_path = os.path.join(WEBUI_DIR_PATH, 'settings.html')
         t = tornado.template.Template(''.join(open(file_path).readlines()))
-        html = t.generate(**envs)
+        html = t.generate(**kv)
         self.write(html)
     
     def get_records(self):
@@ -518,179 +768,12 @@ class WebUIHandler(tornado.web.RequestHandler):
         self.write(html)
 
         
-class Application(tornado.web.Application):
-    
-    @staticmethod
-    def get_default_prefix():
-        
-        return datetime.datetime.now().strftime('rec-%Y-%m-%dT%H%M%S')
-    
-    def __init__(self, driver_wrapper, task_sequence, writer):
-        
-        self.driver_wrapper = driver_wrapper
-        self.task_sequence = task_sequence
-        self.writer = writer
-        self.grab_stop = threading.Event()
-        self.grab_stop.set()
-        
-        handlers = [
-            #
-            (r"/reload", ReloadHandler),
-            (r"/convert", ConvertHandler),
-            # webui
-            (r"/webui/(.*)", WebUIHandler),
-            (r"/static/(.*)", tornado.web.StaticFileHandler, {
-                'path': CONVERTED_DIR_PATH, 
-            }),
-            # task
-            (r"/task/(.*)", TaskHandler),
-            # grab
-            (r"/grab/(.*)", GrabHandler),
-        ]
-        settings = dict(
-            debug=True,
-        )
-        super().__init__(handlers, **settings)
-    
-    def start_recording_thread(self, interval, duration, prefix, after_auto_stop=None):
-        
-        print('start_recording_thread', interval, prefix, duration, after_auto_stop)
-        
-        if not self.grab_stop.is_set():
-            return False
-        
-        self.grab_stop.clear()
-        
-        working_dir = os.path.join(RECORDS_DIR_PATH, prefix)
-        if not os.path.exists(working_dir):
-            os.mkdir(working_dir)
-        
-        thread = RecordingThared(
-            self.grab_stop,
-            interval=interval,
-            working_dir_path=working_dir,
-            writer=self.writer,
-            duration=duration,
-            after_auto_stop=after_auto_stop,
-        )
-        thread.start()
-        return True
-    
-    def stop_recording_thread(self):
-        
-        print('stop_recording_thread')
-        
-        self.grab_stop.set()
-    
-    def move_to_welcome_page(self):
-        
-        file_path = os.path.join(TASKS_DIR_PATH, WELCOME_PAGE_NAME)
-        t = tornado.template.Template(''.join(open(file_path).readlines()))
-        html = t.generate(**self.get_global_envs())
-        self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
-    
-    def move_to_thanks_page(self):
-        
-        file_path = os.path.join(TASKS_DIR_PATH, THANKS_PAGE_NAME)
-        t = tornado.template.Template(''.join(open(file_path).readlines()))
-        html = t.generate(**self.get_global_envs())
-        self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
-    
-    def get_global_envs(self):
-        
-        return {
-            'total_time_limit': self.task_sequence.total_time_limit,
-            'interval': self.task_sequence.interval,
-            'url_prefix': URL_PREFIX,
-        }
-        
-
-class EventWriter(object):
-    
-    def __init__(self):
-    
-        self.running = False
-        self.path = None
-        self.default_data = {}
-    
-    def write(self, s):
-        
-        with open(self.path, 'a') as f:
-            print(s, file=f)
-    
-    def set_default(self, name, data):
-        
-        self.default_data[name] = data
-    
-    def start(self):
-        
-        data = {
-            'time': time.time(),
-            'event': 'start',
-            'args': [self.default_data],
-        }
-        self.write(json.dumps(data))
-        self.running = True
-    
-    def stop(self):
-        
-        self.running = False
-        data = {
-            'time': time.time(),
-            'event': 'stop',
-            'args': [{}],
-        }
-        self.write(json.dumps(data))
-    
-    def __call__(self, s):
-       
-        if self.running and self.path:
-            self.write(s)
-
-
-class TornadoThread(threading.Thread):
-
-    def __init__(self, writer):
-
-        super().__init__()
-        self.writer = writer
-        self.stop_event = None
-
-    def run(self):
-
-        asyncio.run(self.main())
-
-    async def main(self):
-        
-        script_overwriting_rule_path = os.path.join(TASKS_DIR_PATH, SCRIPT_OVERWRITING_RULE_NAME)
-        driver_wrapper = DriverWrapper(script_overwriting_rule_path)
-        task_sequence = TaskSequence(os.path.join(TASKS_DIR_PATH, TASK_SEQUENCE_NAME))
-        
-        app = Application(driver_wrapper, task_sequence, self.writer)
-        app.listen(CONTROLLER_PORT)
-        self.stop_event = asyncio.Event()
-        await self.stop_event.wait()
-
-        
-class CustomVNCLoggingServerProxyEx(CustomVNCLoggingServerProxy):
-    """Modifies behaviour after making a connection"""
-    
-    def connectionMade(self):
-        
-        super().connectionMade()
-        requests.get(URL_PREFIX+'/task/welcome')
-    
-    def connectionLost(self, reason):
-        
-        super().connectionLost(reason)
-        requests.get(URL_PREFIX+'/grab/stop')
-
-
 if __name__ == "__main__":
     
     writer = EventWriter()
+    config = ControllerConfig()
     
-    tornado_thread = TornadoThread(writer)
+    tornado_thread = TornadoThread(writer, config)
     tornado_thread.start()
     print('tornado_thread started')
     
