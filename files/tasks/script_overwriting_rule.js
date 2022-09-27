@@ -24,7 +24,8 @@ core.startEpisodeReal = function() {
 var _endEpisode = core.endEpisode;
 core.endEpisode = function(reward, time_proportional, reason) {
     _endEpisode(reward, undefined, reason);
-    request_get("{{url_prefix}}/task/end_episode?reward="+reward+"&reason="+reason);
+    detail = encodeURIComponent(JSON.stringify({reason: reason}));
+    request_get("{{url_prefix}}/task/end_episode?reward="+reward+"&detail="+detail);
 }
 
 var set_scale = function (s) {
@@ -83,6 +84,6 @@ start_episode = function(){
 };
 
 end_episode = function(ev){
-    reason = undefined;
-    request_get("{{url_prefix}}/task/end_episode?reward="+ev.reward+"&reason="+reason);
+    detail = encodeURIComponent(JSON.stringify(ev));
+    request_get("{{url_prefix}}/task/end_episode?reward="+ev.reward+"&detail="+detail);
 };

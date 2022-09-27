@@ -39,6 +39,7 @@ import numpy as np
 import PIL.Image
 import requests
 import tornado.web
+import tornado.escape
 import tornado.template
 import selenium.webdriver
 from selenium.webdriver.common.keys import Keys
@@ -343,8 +344,10 @@ class TaskHandler(tornado.web.RequestHandler):
     def get_end_episode(self):
         
         reward = self.get_argument('reward', None)
-        reason = self.get_argument('reason', None)
-        task_args = ['end_episode', reward, reason]
+        detail = self.get_argument('detail', None)
+        if detail:
+            detail = json.loads(tornado.escape.url_unescape(detail))
+        task_args = ['end_episode', reward, detail]
         data = {
             'time': time.time(),
             'event': 'task',
