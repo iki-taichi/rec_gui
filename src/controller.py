@@ -10,6 +10,7 @@ import os
 
 import re
 import json
+import yaml
 import base64
 import time
 import datetime
@@ -42,6 +43,7 @@ RECORDS_DIR_PATH = '/files/records'
 CONVERTED_DIR_PATH = '/files/converted'
 TASKS_DIR_PATH = '/files/tasks'
 WEBUI_DIR_PATH = '/files/webui'
+COMPONENTS_DIR_PATH = '/files/components'
 
 WELCOME_PAGE_NAME = 'welcome.html'
 THANKS_PAGE_NAME = 'thanks.html'
@@ -67,7 +69,7 @@ class ControllerConfig(object):
         do_recording = True,
         screenshot_interval = 0.1,
         script_rule_name = 'script_rule.js',
-        task_sequence_name = 'task_sequence.json'
+        task_sequence_name = 'default_tasks.yml'
     ):
         self.do_recording = self._bool(do_recording)
         self.screenshot_interval = float(screenshot_interval)
@@ -84,11 +86,19 @@ class ControllerConfig(object):
         
     @property
     def script_rule_path(self):
-        return os.path.join(TASKS_DIR_PATH, self.script_rule_name)
+        return os.path.join(COMPONENTS_DIR_PATH, self.script_rule_name)
     
     @property
     def task_sequence_path(self):
         return os.path.join(TASKS_DIR_PATH, self.task_sequence_name)
+    
+    @property
+    def welcome_page_path(self):
+        return os.path.join(COMPONENTS_DIR_PATH, WELCOME_PAGE_NAME)
+    
+    @property
+    def thanks_page_path(self):
+        return os.path.join(COMPONENTS_DIR_PATH, THANKS_PAGE_NAME)
 
 
 class ScriptInjectionRule(object):
@@ -146,19 +156,86 @@ class ScriptInjectionRule(object):
 class TaskSequence(object):
     """Represents task sequence used in a recording."""
     
+    @staticmethod
+    def get_value(var_name, var_def, random_state, update):
+    
+        def _eval(var_def, random_state):
+            
+            if var_def is None:
+                return None
+            
+            _type = var_def[0]
+            if _type == '=':
+                # constant string
+                return var_def[1:]
+            
+            elif _type == '$':
+                # random variable
+                func, args = re.findall('^\$([^()]+)\((.+)\)', var_def)[0]
+                args = [_.strip() for _ in args.split(',')]
+                
+                if func == 'int':
+                    
+                    lb = np.iinfo(np.int32).min if args[0] == 'None' else int(args[0])
+                    ub = np.iinfo(np.int32).max if args[1] == 'None' else int(args[1])
+                    return random_state.randint(lb, ub)
+            
+                elif func == 'choice':
+                    
+                    return random_state.choice(args)
+                
+                raise RuntimeError(f'unknown random function: {func}')
+        
+        # we evaluate var_def even if update includes var_name
+        # to keep random state order
+        v = _eval(var_def, random_state)
+        if var_name in update:
+            v = _eval(update[var_name], random_state)
+        
+        return v
+    
+    @classmethod
+    def validate_variables(cls, envs, tasks):
+        random_state = np.random.RandomState(0)
+        update = {}
+        try:
+            for env in envs.values():
+                for k, v in env['variables'].items():
+                    cls.get_value(k, v, random_state, {})
+            for task in tasks:
+                for k, v in task.get('update', {}).items():
+                    cls.get_value(k, v, random_state, {})
+        except Exception as e:
+            return False
+        return True
+    
     def __init__(self, file_path):
         
         self.file_path = file_path
         self.reload()
-        
+    
     def reload(self):
         
-        j = json.load(open(self.file_path))
-        self.total_time_limit = j['total_time_limit']
-        self.seed = j['seed']
-        self.use_random_state = (self.seed is not None)
-        self.tasks = j['tasks']
-        self.random_state = None
+        y = yaml.safe_load(open(self.file_path))
+        
+        assert 'task_set' in y or 'task_seq' in y, 'file should contain task_set or task_seq.'
+        assert not('task_set' in y and 'task_seq' in y), 'file should not contain both of task_set and task_seq.'
+        assert 'total_time_limit' in y, 'file should contain total_time_limit.'
+        
+        self.total_time_limit = y['total_time_limit']
+        self.random_seed = y.get('random_seed', None)
+        self.use_random_state = (self.random_seed is not None)
+        
+        self.envs = y.get('envs', [])
+        
+        self.is_set = 'task_set' in y
+        if self.is_set:
+            self.tasks = y.get('task_set', [])
+        else:
+            self.tasks = y.get('task_seq', [])
+        
+        assert self.validate_variables(self.envs, self.tasks)
+        
         self.gen = None
         self.current_task = None
     
@@ -166,21 +243,38 @@ class TaskSequence(object):
         
         return [
             ('total_time_limit', self.total_time_limit),
-            ('seed', self.seed),
+            ('is_set', self.is_set),
+            ('random_seed', self.random_seed),
+            ('envs', self.envs),
             ('tasks', self.tasks),
         ]
     
     def __iter__(self):
         
+        random_state = None
         if self.use_random_state:
-            self.random_state = np.random.RandomState(self.seed)
+            random_state = np.random.RandomState(self.random_seed)
+        
+        def eval_variables(task):
+            
+            env = self.envs[task['env']]
+            update = task.get('update', {})
+            return {k: self.get_value(k, v, random_state, update) for k, v in env['variables'].items()}
+        
+        if self.is_set:
+            # tasks with sampling 
             while True:
-                task_id = self.random_state.randint(0, len(self.tasks))
-                task_seed = self.random_state.randint(0, np.iinfo(np.uint32).max)
-                yield {'url': self.tasks[task_id][0], 'task_seed': task_seed}
+                task_id = random_state.randint(0, len(self.tasks))
+                task = self.tasks[task_id]
+                variables = eval_variables(task)
+                url = tornado.template.Template(task['url']).generate(**variables).decode()
+                yield {'task_id': task_id, 'url': url, 'variables': variables}
         else:
-            for url, task_seed in self.tasks:
-                yield {'url': url, 'task_seed': task_seed}
+            # sequential tasks
+            for task_id, task in enumerate(self.tasks):
+                variables = eval_variables(task) 
+                url = tornado.template.Template(task['url']).generate(**variables).decode()
+                yield {'task_id': task_id, 'url': url, 'variables': variables}
     
     def reset(self):
         
@@ -257,13 +351,13 @@ class EventWriter(object):
         self.write(json.dumps(data))
         self.running = True
     
-    def stop(self):
+    def stop(self, args={}):
         
         self.running = False
         data = {
             'time': time.time(),
             'event': 'stop',
-            'args': [{}],
+            'args': [{'stop_args': args}],
         }
         self.write(json.dumps(data))
     
@@ -284,7 +378,7 @@ class RecordingThared(threading.Thread):
         return PIL.Image.frombytes("RGB", size, data, "raw", "BGRX", size[0] * 4, 1)
 
     def __init__(self, stop_event, interval, working_dir_path, writer, 
-                 do_recording=True, duration=None, after_auto_stop=None):
+                 do_recording=True, duration=None, after_auto_stop=None, stop_args={}):
         
         super().__init__()
         self.stop_event = stop_event
@@ -294,6 +388,7 @@ class RecordingThared(threading.Thread):
         self.do_recording = do_recording
         self.duration = duration
         self.after_auto_stop = after_auto_stop
+        self.stop_args = stop_args
 
     def run(self):
         
@@ -321,7 +416,7 @@ class RecordingThared(threading.Thread):
                 image.save(path)
                 elapsed = time.time() - t_start
         
-            self.writer.stop()
+            self.writer.stop(self.stop_args)
         
         else:
             
@@ -409,14 +504,8 @@ class Application(tornado.web.Application):
     
     def set_config(self, config):
         
-        is_first = self.config is None
-        
-        if is_first or self.config.task_sequence_path != config.task_sequence_path:
-            self.task_sequence = TaskSequence(config.task_sequence_path)
-        
-        if is_first or self.config.script_rule_path != config.script_rule_path:
-            self.script_rule = ScriptInjectionRule(config.script_rule_path)
-        
+        self.task_sequence = TaskSequence(config.task_sequence_path)
+        self.script_rule = ScriptInjectionRule(config.script_rule_path)
         self.config = config
     
     def start_recording_thread(self, interval, duration, prefix, after_auto_stop=None):
@@ -443,6 +532,7 @@ class Application(tornado.web.Application):
             do_recording = self.config.do_recording,
             duration=duration,
             after_auto_stop=after_auto_stop,
+            stop_args=dict(self.config.get_description()),
         )
         thread.start()
         return True
@@ -455,14 +545,14 @@ class Application(tornado.web.Application):
     
     def move_to_welcome_page(self):
         
-        file_path = os.path.join(TASKS_DIR_PATH, WELCOME_PAGE_NAME)
+        file_path = self.config.welcome_page_path
         t = tornado.template.Template(''.join(open(file_path).readlines()))
         html = t.generate(**self.get_global_envs())
         self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
     
     def move_to_thanks_page(self):
         
-        file_path = os.path.join(TASKS_DIR_PATH, THANKS_PAGE_NAME)
+        file_path = self.config.thanks_page_path
         t = tornado.template.Template(''.join(open(file_path).readlines()))
         html = t.generate(**self.get_global_envs())
         self.driver_wrapper.go('data:text/html;base64,'+base64.b64encode(html).decode("ascii"))
@@ -538,7 +628,7 @@ class TaskHandler(tornado.web.RequestHandler):
             raise e
         
         task_env = self.application.get_global_envs()
-        task_env['task_seed'] = task['task_seed']
+        task_env.update(task['variables'])
         
         # ToDo: this may block if the origin of url is this controller
         self.application.driver_wrapper.go(
@@ -593,7 +683,7 @@ class TaskHandler(tornado.web.RequestHandler):
     def get_start_episode(self):
         
         task = self.application.task_sequence.current_task
-        task_args = ['start_episode', task['url'], task['task_seed']]
+        task_args = ['start_episode', task['url'], task['variables']]
         data = {
             'time': time.time(),
             'event': 'task',

@@ -1,0 +1,105 @@
+total_time_limit: 360
+random_seed: 5
+
+envs:
+  miniwob:
+    variables:
+      path: =file:///usr/local/miniwob-plusplus/html/miniwob
+      task_seed: $int(0, None)
+
+# we remove delay version tasks and debug tasks 
+# mentioned in https://stanfordnlp.github.io/miniwob-plusplus/
+task_set:
+  - {env: miniwob, url: "{{path}}/bisect-angle.html"}
+  - {env: miniwob, url: "{{path}}/book-flight-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/chase-circle.html"}
+  - {env: miniwob, url: "{{path}}/choose-date-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/choose-list.html"}
+  - {env: miniwob, url: "{{path}}/circle-center.html"}
+  - {env: miniwob, url: "{{path}}/click-button-sequence.html"}
+  - {env: miniwob, url: "{{path}}/click-button.html"}
+  - {env: miniwob, url: "{{path}}/click-checkboxes-large.html"}
+  - {env: miniwob, url: "{{path}}/click-checkboxes-soft.html"}
+  - {env: miniwob, url: "{{path}}/click-checkboxes-transfer.html"}
+  - {env: miniwob, url: "{{path}}/click-checkboxes.html"}
+  - {env: miniwob, url: "{{path}}/click-collapsible-2-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/click-collapsible-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/click-color.html"}
+  - {env: miniwob, url: "{{path}}/click-dialog-2.html"}
+  - {env: miniwob, url: "{{path}}/click-dialog.html"}
+  - {env: miniwob, url: "{{path}}/click-link.html"}
+  - {env: miniwob, url: "{{path}}/click-menu-2.html"}
+  - {env: miniwob, url: "{{path}}/click-menu.html"}
+  - {env: miniwob, url: "{{path}}/click-option.html"}
+  - {env: miniwob, url: "{{path}}/click-pie-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/click-scroll-list.html"}
+  - {env: miniwob, url: "{{path}}/click-shades.html"}
+  - {env: miniwob, url: "{{path}}/click-shape.html"}
+  - {env: miniwob, url: "{{path}}/click-tab-2-hard.html"}
+  - {env: miniwob, url: "{{path}}/click-tab-2.html"}
+  - {env: miniwob, url: "{{path}}/click-tab.html"}
+  - {env: miniwob, url: "{{path}}/click-test-2.html"}
+  - {env: miniwob, url: "{{path}}/click-test.html"}
+  - {env: miniwob, url: "{{path}}/click-widget.html"}
+  - {env: miniwob, url: "{{path}}/copy-paste-2.html"}
+  - {env: miniwob, url: "{{path}}/copy-paste.html"}
+  - {env: miniwob, url: "{{path}}/count-shape.html"}
+  - {env: miniwob, url: "{{path}}/count-sides.html"}
+  - {env: miniwob, url: "{{path}}/drag-box.html"}
+  - {env: miniwob, url: "{{path}}/drag-cube.html"}
+  - {env: miniwob, url: "{{path}}/drag-item.html"}
+  - {env: miniwob, url: "{{path}}/drag-items-grid.html"}
+  - {env: miniwob, url: "{{path}}/drag-items.html"}
+  - {env: miniwob, url: "{{path}}/drag-shapes.html"}
+  - {env: miniwob, url: "{{path}}/drag-sort-numbers.html"}
+  - {env: miniwob, url: "{{path}}/email-inbox-forward-nl-turk.html"}
+  - {env: miniwob, url: "{{path}}/email-inbox-forward-nl.html"}
+  - {env: miniwob, url: "{{path}}/email-inbox-nl-turk.html"}
+  - {env: miniwob, url: "{{path}}/email-inbox.html"}
+  - {env: miniwob, url: "{{path}}/enter-date.html"}
+  - {env: miniwob, url: "{{path}}/enter-password.html"}
+  - {env: miniwob, url: "{{path}}/enter-text-2.html"}
+  - {env: miniwob, url: "{{path}}/enter-text-dynamic.html"}
+  - {env: miniwob, url: "{{path}}/enter-text.html"}
+  - {env: miniwob, url: "{{path}}/enter-time.html"}
+  - {env: miniwob, url: "{{path}}/find-midpoint.html"}
+  - {env: miniwob, url: "{{path}}/find-word.html"}
+  - {env: miniwob, url: "{{path}}/focus-text-2.html"}
+  - {env: miniwob, url: "{{path}}/focus-text.html"}
+  - {env: miniwob, url: "{{path}}/grid-coordinate.html"}
+  - {env: miniwob, url: "{{path}}/guess-number.html"}
+  - {env: miniwob, url: "{{path}}/highlight-text-2.html"}
+  - {env: miniwob, url: "{{path}}/highlight-text.html"}
+  - {env: miniwob, url: "{{path}}/identify-shape.html"}
+  - {env: miniwob, url: "{{path}}/login-user-popup.html"}
+  - {env: miniwob, url: "{{path}}/login-user.html"}
+  - {env: miniwob, url: "{{path}}/moving-items.html"}
+  - {env: miniwob, url: "{{path}}/multi-layouts.html"}
+  - {env: miniwob, url: "{{path}}/multi-orderings.html"}
+  - {env: miniwob, url: "{{path}}/navigate-tree.html"}
+  - {env: miniwob, url: "{{path}}/number-checkboxes.html"}
+  - {env: miniwob, url: "{{path}}/read-table-2.html"}
+  - {env: miniwob, url: "{{path}}/read-table.html"}
+  - {env: miniwob, url: "{{path}}/resize-textarea.html"}
+  - {env: miniwob, url: "{{path}}/right-angle.html"}
+  - {env: miniwob, url: "{{path}}/scroll-text-2.html"}
+  - {env: miniwob, url: "{{path}}/scroll-text.html"}
+  - {env: miniwob, url: "{{path}}/search-engine.html"}
+  - {env: miniwob, url: "{{path}}/simon-says.html"}
+  - {env: miniwob, url: "{{path}}/simple-algebra.html"}
+  - {env: miniwob, url: "{{path}}/simple-arithmetic.html"}
+  - {env: miniwob, url: "{{path}}/social-media-all.html"}
+  - {env: miniwob, url: "{{path}}/social-media-some.html"}
+  - {env: miniwob, url: "{{path}}/social-media.html"}
+  - {env: miniwob, url: "{{path}}/terminal.html"}
+  - {env: miniwob, url: "{{path}}/text-editor.html"}
+  - {env: miniwob, url: "{{path}}/text-transform.html"}
+  - {env: miniwob, url: "{{path}}/tic-tac-toe.html"}
+  - {env: miniwob, url: "{{path}}/unicode-test.html"}
+  - {env: miniwob, url: "{{path}}/use-autocomplete-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/use-colorwheel-2.html"}
+  - {env: miniwob, url: "{{path}}/use-colorwheel.html"}
+  - {env: miniwob, url: "{{path}}/use-slider-2.html"}
+  - {env: miniwob, url: "{{path}}/use-slider.html"}
+  - {env: miniwob, url: "{{path}}/use-spinner.html"}
+  - {env: miniwob, url: "{{path}}/visual-addition.html"}

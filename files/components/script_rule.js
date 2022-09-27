@@ -43,7 +43,7 @@ var set_scale = function (s) {
     }
     jQuery.fn.offset = function () {
       if (arguments.length) {
-        return jQuery.fn._offset.appyly(this, arguments);
+        return jQuery.fn._offset.apply(this, arguments);
       }
       
       var x = jQuery.fn._offset.call(this);

@@ -1,0 +1,22 @@
+total_time_limit: 300
+random_seed: 42
+envs:
+  miniwob:
+    variables:
+      path: =file:///usr/local/miniwob-plusplus/html/miniwob
+      task_seed: $int(0, None)
+  nlpb-gui:
+    variables:
+      path: =http://nlpb-gui:8889/task
+      init_url: $choice(none, dataset, split, _id)
+      name:
+      split: 
+      id:
+task_set:
+  - {env: miniwob, url: "{{path}}/bisect-angle.html"}
+  - {env: miniwob, url: "{{path}}/book-flight-nodelay.html"}
+  - {env: miniwob, url: "{{path}}/chase-circle.html"}
+  - {env: nlpb-gui, update: {name: =STSB, split: =train, id: "$int(0, 5749)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}
+  - {env: nlpb-gui, update: {name: =MNLI, split: =train, id: "$int(0, 392702)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}
+  - {env: nlpb-gui, update: {name: =SQuAD, split: =train, id: "$int(0, 87599)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}
+ 

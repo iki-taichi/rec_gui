@@ -189,6 +189,8 @@ class ControlEvent(EventBase):
             elif k == 'task_args':
                 self.msg = v[0]
                 self.subargs = v[1:]
+            elif k == 'stop_args':
+                self.stop_args = v
             else:
                 raise RuntimeError(f'unknown sub argument: {k}')
     
@@ -201,7 +203,7 @@ class StartEvent(ControlEvent):
 class StopEvent(ControlEvent):
     
     name = 'stop'
-
+    repr_props = ('stop_args',)
 
 class TaskEvent(ControlEvent):
     

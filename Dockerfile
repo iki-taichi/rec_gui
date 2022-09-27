@@ -45,7 +45,7 @@ RUN cd /usr/local \
 
 ## Python libraries
 RUN python3.9 -m pip install -U pip
-RUN python3.9 -m pip install selenium tornado Pillow requests numpy
+RUN python3.9 -m pip install selenium tornado Pillow requests numpy pyyaml
 
 ## vncdotool requirements
 COPY src/vncdotool_mini/requirements.txt /tmp/requirements.txt

@@ -1,0 +1,24 @@
+total_time_limit: 300
+random_seed: 42
+
+envs:
+  nlpb-gui:
+    variables:
+      path: =http://nlpb-gui:8889/task
+      init_url: $choice(none, dataset, split, _id)
+      name:
+      split: 
+      id:
+
+# The numbers of examples
+# STSB: 5749
+# MNLI: 392702
+# SQuAD: 87599
+# We use the first half here.
+# We choose those tasks for the diversity of answer types:
+# number(0-5), class(entailment, neutral, contradiction), extraction
+
+task_set:
+  - {env: nlpb-gui, update: {name: =STSB, split: =train, id: "$int(0, 2874)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}
+  - {env: nlpb-gui, update: {name: =MNLI, split: =train, id: "$int(0, 196351)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}
+  - {env: nlpb-gui, update: {name: =SQuAD, split: =train, id: "$int(0, 43799)"}, url: "{{path}}/{{name}}/{{split}}/{{id}}?init={{init_url}}"}

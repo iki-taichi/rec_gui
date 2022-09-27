@@ -1,9 +1,0 @@
-{
-    "total_time_limit": 30,
-    "interval": 0.1,
-    "seed": 43,
-    "tasks": [
-        ["file:///usr/local/miniwob-plusplus/html/miniwob/bisect-angle.html", null],
-        ["http://nlpb-gui:8889/task/STSB/train/201?init=none", null]
-    ]
-}
