@@ -43,6 +43,20 @@ RUN apt update \
 RUN cd /usr/local \
     && git clone https://github.com/stanfordnlp/miniwob-plusplus.git
 
+## Replace jquery ui with the newer version
+RUN rm -r /usr/local/miniwob-plusplus/html/core/jquery-ui
+COPY jquery-ui-1.13.2 /usr/local/miniwob-plusplus/html/core/jquery-ui
+
+## Patch for jscolor to use scaled document
+RUN mv /usr/local/miniwob-plusplus/html/core/jscolor.min.js /usr/local/miniwob-plusplus/html/core/_jscolor.min.js
+RUN cat /usr/local/miniwob-plusplus/html/core/_jscolor.min.js | sed \
+    -e 's!\(s.x-e._pointerOrigin.x\)!(\1)/JSC_SCALE!' \
+    -e 's!\(s.y-e._pointerOrigin.y\)!(\1)/JSC_SCALE!' \
+    -e 's!\(i.y-e._pointerOrigin.y\)!(\1)/JSC_SCALE!' \
+    -e 's!\(e.picker.wrap.style.left=n\)!\1/JSC_SCALE!' \
+    -e 's!\(e.picker.wrap.style.top=r\)!\1/JSC_SCALE!' > /usr/local/miniwob-plusplus/html/core/jscolor.min.js
+RUN echo 'var JSC_SCALE=1.0;' >> /usr/local/miniwob-plusplus/html/core/jscolor.min.js
+
 ## Python libraries
 RUN python3.9 -m pip install -U pip
 RUN python3.9 -m pip install selenium tornado Pillow requests numpy pyyaml
@@ -54,10 +68,6 @@ RUN python3.9 -m pip install -r /tmp/requirements.txt
 ## Copy source codes
 RUN mkdir /src
 COPY src /src
-
-## Replace jquery ui
-RUN rm -r /usr/local/miniwob-plusplus/html/core/jquery-ui
-COPY jquery-ui-1.13.2 /usr/local/miniwob-plusplus/html/core/jquery-ui
 
 # Boot the system
 # We depend on supervisor to manage multiple processes

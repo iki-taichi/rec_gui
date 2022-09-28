@@ -67,6 +67,11 @@ var set_scale = function (s) {
       _graphClicked(event_wrapper);
     }
   }
+
+  // jscolor
+  if (typeof JSC_SCALE !== 'undefined') {
+    JSC_SCALE = s;
+  }
 }
 set_scale(body_scale);
 
