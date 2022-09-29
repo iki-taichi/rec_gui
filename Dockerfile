@@ -69,10 +69,14 @@ RUN python3.9 -m pip install -r /tmp/requirements.txt
 RUN mkdir /src
 COPY src /src
 
+## add a user for the owner of output files
+## we use the user in the conversion function in controller
+COPY add_user.sh /usr/local/bin/add_user.sh
+RUN chmod +x /usr/local/bin/add_user.sh
+
 # Boot the system
 # We depend on supervisor to manage multiple processes
 # See supervisord.conf for the detail
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-CMD ["/usr/bin/supervisord"]
-#CMD ["python3.9", "-u", "/src/controller.py"]
+CMD /usr/local/bin/add_user.sh && /usr/bin/supervisord

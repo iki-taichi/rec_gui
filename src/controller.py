@@ -14,6 +14,7 @@ import yaml
 import base64
 import time
 import datetime
+import subprocess
 import asyncio
 import threading
 import numpy as np
@@ -788,7 +789,13 @@ class ConvertHandler(tornado.web.RequestHandler):
             self.write('record not found')
             return
         
+        # change the owner of record_path      
+        subprocess.run(["chown", "-R", "user:user", record_path])
+        
         serializer.serialize(record_path, converted_path, 0.1)
+        
+        # change the owner of converted_path       
+        subprocess.run(["chown", "-R", "user:user", converted_path])
         
         self.write('done')
 
