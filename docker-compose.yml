@@ -6,6 +6,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - ID
     ports:
       - 5900:5900
       - 5902:5902
