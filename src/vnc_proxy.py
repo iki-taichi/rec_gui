@@ -129,14 +129,12 @@ class CustomVNCLoggingClientProxy(portforward.ProxyClient):
 
     def connectionLost(self, reason):
         
-        print('client proxy', 'connectionLost', reason)
         super().connectionLost(reason)
         if self.internal_protocol:
             self.internal_protocol.connectionLost(reason)
 
     def dataReceived(self, data):
         
-        print('CustomVNCLoggingClientProxy', 'dataReceived', len(data))
         super().dataReceived(data)
         if self.internal_protocol:
             self.internal_protocol.dataReceived(data)
@@ -210,7 +208,7 @@ class CustomVNCLoggingServerProxy(portforward.ProxyServer):
     reconnect_tolerance = 1
     
     def __init__(self, *args, **kwargs):
-        print(args, kwargs)
+        
         super().__init__(*args, **kwargs)
         self.internal_protocol = None
         
@@ -267,7 +265,6 @@ class CustomVNCLoggingServerProxy(portforward.ProxyServer):
     
     def dataReceived(self, data):
         
-        print('CustomVNCLoggingServerProxy', 'dataReceived', len(data))
         super().dataReceived(data)
         if self.internal_protocol:
             self.internal_protocol.dataReceived(data)

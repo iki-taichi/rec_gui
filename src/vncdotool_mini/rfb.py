@@ -457,7 +457,6 @@ class RFBClient(Protocol):
 
     def _handleFramebufferUpdate(self, block):
         (self.rectangles,) = unpack("!xH", block)
-        print('_handleFramebufferUpdate', self.rectangles)
         self.rectanglePos = []
         self.beginUpdate()
         self._doConnection()
@@ -471,8 +470,6 @@ class RFBClient(Protocol):
 
     def _handleRectangle(self, block):
         (x, y, width, height, encoding) = unpack("!HHHHi", block)
-        
-        print('_handle_rectangle', x, y, width, height, encoding)
         
         if self.rectangles:
             self.rectangles -= 1
@@ -927,7 +924,6 @@ class RFBClient(Protocol):
            update with FramebufferUpdateRequest(incremental=1).
            argument is a list of tuples (x,y,w,h) with the updated
            rectangles."""
-        print('commitUpdate', rectangles)
 
     def updateRectangle(self, x, y, width, height, data):
         """new bitmap data. data is a string in the pixel format set
@@ -936,7 +932,6 @@ class RFBClient(Protocol):
     def copyRectangle(self, srcx, srcy, x, y, width, height):
         """used for copyrect encoding. copy the given rectangle
            (src, srxy, width, height) to the target coords (x,y)"""
-        print('copyRectangle', srcx, srcy, x, y, width, height)
         
     def fillRectangle(self, x, y, width, height, color):
         """fill the area with the color. the color is a string in
@@ -1002,7 +997,6 @@ class RFBServer(Protocol):
         self._handler = self._handle_version, 12
 
     def dataReceived(self, data):
-        print('RFBServer', len(data), self._handler[1])
         self.buffer += data
         while len(self.buffer) >= self._handler[1]:
             self._handler[0]()
@@ -1048,7 +1042,6 @@ class RFBServer(Protocol):
 
     def _handle_protocol(self):
         ptype = unpack('!B', self.buffer[0:1])[0]
-        print('_handle_protocol', ptype)
         nbytes = TYPE_LEN.get(ptype, 0)
         if len(self.buffer) < nbytes:
             self._handler = self._handle_protocol, nbytes + 1
@@ -1106,68 +1099,6 @@ class RFBServer(Protocol):
         pass
     
 
-# --- test code only, see vncviewer.py
-
 if __name__ == '__main__':
-    class RFBTest(RFBClient):
-        """dummy client"""
-        def vncConnectionMade(self):
-            print("Screen format: depth=%d bytes_per_pixel=%r" % (self.depth, self.bpp))
-            print("Desktop name: %r" % self.name)
-            self.SetEncodings([RAW_ENCODING])
-            self.FramebufferUpdateRequest()
 
-        def updateRectangle(self, x, y, width, height, data):
-            print("%s " * 5 % (x, y, width, height, repr(data[:20])))
-
-    class RFBTestFactory(protocol.ClientFactory):
-        """test factory"""
-        protocol = RFBTest
-        def clientConnectionLost(self, connector, reason):
-            print(reason)
-            from twisted.internet import reactor
-            reactor.stop()
-            #~ connector.connect()
-
-        def clientConnectionFailed(self, connector, reason):
-            print("connection failed:", reason)
-            from twisted.internet import reactor
-            reactor.stop()
-
-    class Options(usage.Options):
-        """command line options"""
-        optParameters = [
-            ['display',     'd', '0',               'VNC display'],
-            ['host',        'h', 'localhost',       'remote hostname'],
-            ['outfile',     'o', None,              'Logfile [default: sys.stdout]'],
-        ]
-
-    o = Options()
-    try:
-        o.parseOptions()
-    except usage.UsageError as errortext:
-        print("%s: %s" % (sys.argv[0], errortext))
-        print("%s: Try --help for usage details." % (sys.argv[0]))
-        raise SystemExit(1)
-
-    logFile = sys.stdout
-    if o.opts['outfile']:
-        logFile = o.opts['outfile']
-    log.startLogging(logFile)
-
-    host = o.opts['host']
-    port = int(o.opts['display']) + 5900
-
-    application = service.Application("rfb test") # create Application
-
-    # connect to this host and port, and reconnect if we get disconnected
-    vncClient = internet.TCPClient(host, port, RFBFactory()) # create the service
-    vncClient.setServiceParent(application)
-
-    # this file should be run as 'twistd -y rfb.py' but it didn't work -
-    # could't import crippled_des.py, so using this hack.
-    # now with crippled_des.py replaced with pyDes this can be no more actual
-    from twisted.internet import reactor
-    vncClient.startService()
-    reactor.run()
-
+    pass
