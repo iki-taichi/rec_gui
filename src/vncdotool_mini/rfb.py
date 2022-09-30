@@ -457,6 +457,7 @@ class RFBClient(Protocol):
 
     def _handleFramebufferUpdate(self, block):
         (self.rectangles,) = unpack("!xH", block)
+        print('_handleFramebufferUpdate', self.rectangles)
         self.rectanglePos = []
         self.beginUpdate()
         self._doConnection()
@@ -470,6 +471,8 @@ class RFBClient(Protocol):
 
     def _handleRectangle(self, block):
         (x, y, width, height, encoding) = unpack("!HHHHi", block)
+        
+        print('_handle_rectangle', x, y, width, height, encoding)
         
         if self.rectangles:
             self.rectangles -= 1
@@ -823,7 +826,6 @@ class RFBClient(Protocol):
     def dataReceived(self, data):
         #~ sys.stdout.write(repr(data) + '\n')
         #~ print len(data), ", ", len(self._packet)
-        #print('dataReceived', self._handler)
         self._packet.append(data)
         self._packet_len += len(data)
         self._handler()
@@ -925,6 +927,7 @@ class RFBClient(Protocol):
            update with FramebufferUpdateRequest(incremental=1).
            argument is a list of tuples (x,y,w,h) with the updated
            rectangles."""
+        print('commitUpdate', rectangles)
 
     def updateRectangle(self, x, y, width, height, data):
         """new bitmap data. data is a string in the pixel format set
@@ -933,7 +936,8 @@ class RFBClient(Protocol):
     def copyRectangle(self, srcx, srcy, x, y, width, height):
         """used for copyrect encoding. copy the given rectangle
            (src, srxy, width, height) to the target coords (x,y)"""
-
+        print('copyRectangle', srcx, srcy, x, y, width, height)
+        
     def fillRectangle(self, x, y, width, height, color):
         """fill the area with the color. the color is a string in
            the pixel format set up earlier"""
@@ -998,6 +1002,7 @@ class RFBServer(Protocol):
         self._handler = self._handle_version, 12
 
     def dataReceived(self, data):
+        print('RFBServer', len(data), self._handler[1])
         self.buffer += data
         while len(self.buffer) >= self._handler[1]:
             self._handler[0]()
@@ -1043,6 +1048,7 @@ class RFBServer(Protocol):
 
     def _handle_protocol(self):
         ptype = unpack('!B', self.buffer[0:1])[0]
+        print('_handle_protocol', ptype)
         nbytes = TYPE_LEN.get(ptype, 0)
         if len(self.buffer) < nbytes:
             self._handler = self._handle_protocol, nbytes + 1
@@ -1050,6 +1056,7 @@ class RFBServer(Protocol):
 
         block = self.buffer[1:nbytes]
         self.buffer = self.buffer[nbytes:]
+        
         if ptype == 0:
             args = unpack('!xxxBBBBHHHBBBxxx', block)
             self.handle_setPixelFormat(*args)

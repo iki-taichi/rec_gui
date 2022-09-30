@@ -454,14 +454,13 @@ class CustomVNCLoggingServerProxyEx(CustomVNCLoggingServerProxy):
     """Customized VNC Proxy (client -> server side)
     This class adds actions that shows pages after making a connection"""
     
-    def connectionMade(self):
-        
-        super().connectionMade()
-        requests.get(URL_PREFIX+'/task/welcome')
+    def on_connection_made(self, restarted):
+        print('on_connection_made', restarted)
+        if not restarted: 
+            requests.get(URL_PREFIX+'/task/welcome')
     
-    def connectionLost(self, reason):
-        
-        super().connectionLost(reason)
+    def on_connection_lost(self, reason):
+        print('on_connection_lost') 
         requests.get(URL_PREFIX+'/grab/stop')
 
 

@@ -129,12 +129,14 @@ class CustomVNCLoggingClientProxy(portforward.ProxyClient):
 
     def connectionLost(self, reason):
         
+        print('client proxy', 'connectionLost', reason)
         super().connectionLost(reason)
         if self.internal_protocol:
             self.internal_protocol.connectionLost(reason)
 
     def dataReceived(self, data):
-
+        
+        print('CustomVNCLoggingClientProxy', 'dataReceived', len(data))
         super().dataReceived(data)
         if self.internal_protocol:
             self.internal_protocol.dataReceived(data)
@@ -177,9 +179,11 @@ class DummyRFBServer(rfb.RFBServer):
         self.writer(json.dumps(data))
     
     def _handle_version(self):
+        
         msg = self.buffer[:12]
         if not msg.startswith(b'RFB 003.') and msg.endswith(b'\n'):
             self.transport.loseConnection()
+            return
         
         # report version to the root factory
         self.proxy.pv_client = msg
@@ -199,13 +203,14 @@ class DummyRFBServer(rfb.RFBServer):
             # XXX send security v3.7+
             self._handler = self._handle_security, 1
         
-        
+
 class CustomVNCLoggingServerProxy(portforward.ProxyServer):
     
     clientProtocolFactory = CustomVNCLoggingClientFactory
+    reconnect_tolerance = 1
     
     def __init__(self, *args, **kwargs):
-        
+        print(args, kwargs)
         super().__init__(*args, **kwargs)
         self.internal_protocol = None
         
@@ -222,18 +227,47 @@ class CustomVNCLoggingServerProxy(portforward.ProxyServer):
     
     def connectionMade(self):
         
+        t_connection_made = time.time()
+        
         super().connectionMade()
         self.internal_protocol = DummyRFBServer(NullTransport(), self, self.factory)
         self.internal_protocol.connectionMade()
-    
+        
+        host = self.transport.getPeer().host
+        last_t_connection_lost = self.factory.time_connection_lost.get(host, None)
+        
+        restarted = False
+        if last_t_connection_lost is not None and \
+            t_connection_made - last_t_connection_lost < self.reconnect_tolerance:
+            s = self.factory.connection_lost_schedule.get(host, None)
+            if (s is not None) and s.active():
+                s.cancel()
+                del self.factory.connection_lost_schedule[host]
+            restarted = True
+        self.on_connection_made(restarted)
+
     def connectionLost(self, reason):
         
+        t_connection_lost = time.time()
+
         super().connectionLost(reason)
         if self.internal_protocol:
             self.internal_protocol.connectionLost(reason)
+        
+        host = self.transport.getPeer().host
+        self.factory.time_connection_lost[host] = t_connection_lost
+        self.factory.connection_lost_schedule[host] = \
+            reactor.callLater(self.reconnect_tolerance, self.on_connection_lost, reason)
+    
+    def on_connection_made(self, restarted):
+        pass
+    
+    def on_connection_lost(self, reason):
+        pass
     
     def dataReceived(self, data):
         
+        print('CustomVNCLoggingServerProxy', 'dataReceived', len(data))
         super().dataReceived(data)
         if self.internal_protocol:
             self.internal_protocol.dataReceived(data)
@@ -266,6 +300,8 @@ class CustomVNCLoggingServerFactory(portforward.ProxyFactory):
         self.pseudodesktop = pseudodesktop
         self.writer = writer
         self.listen_port = None
+        self.time_connection_lost = {}
+        self.connection_lost_schedule = {}
 
     def listen_tcp(self, listen_port):
         
