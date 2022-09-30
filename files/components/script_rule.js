@@ -76,6 +76,35 @@ var set_scale = function (s) {
 set_scale(body_scale);
 
 
+//!miniwob/click-dialog-2.html
+generateDialog = function(div){
+  var html = '<p>' + ui_utils.generateWords(4,8) + '</p>';
+  div.append(html);
+  var expectedButton = core.sample(BUTTONS);
+
+  $('#dialog').dialog({
+    height: 0,
+    width: 0,
+    position: {my: 'center', at: 'center', of: document.getElementById('area')},
+    buttons: [
+      { text: 'Cancel', click: function(e) {
+        var r = e.target.innerHTML === expectedButton ? 1.0 : -1.0;
+        core.endEpisode(r, r > 0);
+      } },
+      { text: 'OK', click: function(e) {
+        var r = e.target.innerHTML === expectedButton ? 1.0 : -1.0;
+        core.endEpisode(r, r > 0);
+      } }
+    ]
+  });
+
+  $('.ui-dialog')[0].style.margin = core.randi(15,25) + 'px ' + core.randi(5,10) + 'px';
+  $('.ui-dialog')[0].style.width = core.randi(115,140) + 'px';
+
+  return expectedButton;
+}
+
+
 //!http://nlpb-gui
 function request_get(url) {
     var xmlHttp = new XMLHttpRequest();
