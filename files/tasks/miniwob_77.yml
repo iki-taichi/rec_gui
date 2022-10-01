@@ -1,5 +1,5 @@
 total_time_limit: 360
-random_seed: 42
+random_seed: 77
 
 envs:
   miniwob:
