@@ -64,3 +64,36 @@ The directory includes a series of images and a json file that contains the list
 
 ToDo
 
+## Demonstration
+
+We publish some demonstrations recorded with RecGUI.
+
+- The tasks were sampled from [MiniWoB++](https://stanfordnlp.github.io/miniwob-plusplus/) (excluded flight search tasks, tasks of the delay version, and debug tasks mentioned in the MiniWoB++ website).
+- A session lasted 360 seconds, and we recorded 100 sessions with different random seeds.
+- The demonstrations were made by one of the RecGUI developers. Thus, they are clean, although thet contain some mistakes.
+
+The following link will take you to the google drive directory, where you will find several zip files. 
+
+[pub_demo](https://drive.google.com/drive/folders/1vigR0KN6StvtRL-u4dzdwUhljBoKUdMp?usp=sharing)
+
+| files | description |
+|:---|:---|
+| records_n.zip | original data |
+| converted_n.zip | converted version |
+
+Each file includes 10 records and the structure of a record is as follows:
+
+```
+records_n/miniwob_s*seed*
+    - events.txt
+    - <timestamp>.jpg
+    - ...
+```
+
+```
+converted_n/miniwob_s*seed*
+    - meta.json
+    - 0.jpg
+    - 1.jpg
+    - ...
+```
